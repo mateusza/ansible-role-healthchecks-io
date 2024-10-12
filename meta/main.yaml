@@ -1,0 +1,10 @@
+---
+galaxy_info:
+  role_name: new_role
+  namespace: mateuszadamowski
+  author: Mateusz Adamowski
+  description: New role
+  license: public_domain
+  min_ansible_version: "2.16"
+  galaxy_tags: []
+dependencies: []
