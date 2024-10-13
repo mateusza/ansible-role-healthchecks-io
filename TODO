@@ -1,0 +1,6 @@
+TODO
+====
+
+- add crontab support for non-systemd targets
+- make period and grace time customizable
+- list integrations if variable missing

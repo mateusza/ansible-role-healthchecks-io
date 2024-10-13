@@ -1,7 +1,18 @@
 ---
 # Create API key from Project Settings
-healthchecks_io_api_key: XXXXXX
+healthchecks_io_api_key: ""
+
+# Optional
+healthchecks_io_ping_key: ""
 
 # Define integrations (channels) and get their IDs
-# (This part may require you to use API to check website source code)
 healthchecks_io_channels: []
+
+healthchecks_io_slug: "{{ inventory_hostname | regex_replace('\\.', '-') }}-alive"
+healthchecks_io_name: "{{ inventory_hostname }}: alive"
+healthchecks_io_service_name: "healthchecks-io-alive"
+healthchecks_io_conf: /etc/healthchecks-io-alive.conf
+
+# Those values should be changed if you want to use a custom instance:
+healthchecks_io_baseurl: https://healthchecks.io/api/v3
+healthchecks_io_ping_baseurl: https://hc-ping.com

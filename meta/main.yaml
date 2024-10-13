@@ -1,6 +1,6 @@
 ---
 galaxy_info:
-  role_name: healthcheck_io_checks
+  role_name: healthcheck_io
   namespace: mateuszadamowski
   author: Mateusz Adamowski
   description: Healthchecks.io Role

@@ -1,4 +1,1 @@
 ---
-healthchecks_io_baseurl: https://healthchecks.io/api/v3
-healthchecks_io_service_name: "healthchecks-io-alive"
-healthchecks_io_conf: /etc/healthchecks-io-alive.conf

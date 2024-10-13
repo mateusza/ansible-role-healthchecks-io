@@ -2,9 +2,15 @@
 - name: Healthcheck.io cloud configuration
   delegate_to: localhost
   block:
+    - name: API key presence
+      ansible.builtin.assert:
+        that: healthchecks_io_api_key != ""
+        fail_msg: |
+          Register API key and define it as `healthchecks_io_api_key`
+
     - name: Query API for existing check
       ansible.builtin.uri:
-        url: "{{ healthchecks_io_baseurl }}/checks/?slug={{ inventory_hostname }}-alive"
+        url: "{{ healthchecks_io_baseurl }}/checks/?slug={{ healthchecks_io_slug }}"
         method: GET
         headers:
           X-Api-Key: "{{ healthchecks_io_api_key }}"
@@ -13,15 +19,15 @@
       register: hc_api_get_check_uri
       check_mode: false
 
-    - name: Create check if not existent
+    - name: Create check if not present
       ansible.builtin.uri:
         url: "{{ healthchecks_io_baseurl }}/checks/"
         method: POST
         headers:
           X-Api-Key: "{{ healthchecks_io_api_key }}"
         body:
-          name: "{{ inventory_hostname }}: alive"
-          slug: "{{ inventory_hostname }}-alive"
+          name: "{{ healthchecks_io_name }}"
+          slug: "{{ healthchecks_io_slug }}"
           channels: "{{ healthchecks_io_channels | join(',') }}"
           timeout: 120
           grace: 300
@@ -30,22 +36,18 @@
       register: hc_api_post_check_uri
       when: hc_api_get_check_uri.json.checks | length == 0
 
-- name: Oldstyle cron job cleanup
-  block:
-    - name: Remove cron.d file
-      ansible.builtin.file:
-        path: "/etc/cron.d/{{ item }}"
-        state: absent
-      loop:
-        - hc
-
 - name: Healthcheck.io monitored system configuration
   block:
     - name: Configuration file
       vars:
-        post_url: "{{ (hc_api_get_check_uri.json.checks | first
-                       if (hc_api_get_check_uri.json.checks | length > 0)
-                       else hc_api_post_check_uri.json).ping_url
+        post_url: "{{
+                      (healthchecks_io_ping_baseurl
+                       ~ '/' ~ healthchecks_io_ping_key
+                       ~ '/' ~ healthchecks_io_slug)
+                      if (healthchecks_io_ping_key | default('') | length > 0)
+                      else (hc_api_get_check_uri.json.checks | first
+                            if (hc_api_get_check_uri.json.checks | length > 0)
+                            else hc_api_post_check_uri.json).ping_url
                    }}"
       ansible.builtin.copy:
         dest: "{{ healthchecks_io_conf }}"
