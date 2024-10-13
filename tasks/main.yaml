@@ -1,1 +1,96 @@
 ---
+- name: Healthcheck.io cloud configuration
+  delegate_to: localhost
+  block:
+    - name: Query API for existing check
+      ansible.builtin.uri:
+        url: "{{ healthchecks_io_baseurl }}/checks/?slug={{ inventory_hostname }}-alive"
+        method: GET
+        headers:
+          X-Api-Key: "{{ healthchecks_io_api_key }}"
+        return_content: true
+        status_code: 200
+      register: hc_api_get_check_uri
+      check_mode: false
+
+    - name: Create check if not existent
+      ansible.builtin.uri:
+        url: "{{ healthchecks_io_baseurl }}/checks/"
+        method: POST
+        headers:
+          X-Api-Key: "{{ healthchecks_io_api_key }}"
+        body:
+          name: "{{ inventory_hostname }}: alive"
+          slug: "{{ inventory_hostname }}-alive"
+          channels: "{{ healthchecks_io_channels | join(',') }}"
+          timeout: 120
+          grace: 300
+        body_format: json
+        status_code: 201
+      register: hc_api_post_check_uri
+      when: hc_api_get_check_uri.json.checks | length == 0
+
+- name: Oldstyle cron job cleanup
+  block:
+    - name: Remove cron.d file
+      ansible.builtin.file:
+        path: "/etc/cron.d/{{ item }}"
+        state: absent
+      loop:
+        - hc
+
+- name: Healthcheck.io monitored system configuration
+  block:
+    - name: Configuration file
+      vars:
+        post_url: "{{ (hc_api_get_check_uri.json.checks | first
+                       if (hc_api_get_check_uri.json.checks | length > 0)
+                       else hc_api_post_check_uri.json).ping_url
+                   }}"
+      ansible.builtin.copy:
+        dest: "{{ healthchecks_io_conf }}"
+        content: |
+          POST_URL="{{ post_url }}"
+        mode: '0600'
+        owner: root
+        group: root
+
+    - name: Systemd service
+      ansible.builtin.copy:
+        dest: "/etc/systemd/system/{{ healthchecks_io_service_name }}.service"
+        content: |
+          [Unit]
+          Description=Healthcheck.io Alive
+
+          [Service]
+          Type=oneshot
+          EnvironmentFile={{ healthchecks_io_conf }}
+          ExecStart=/usr/bin/curl -s -X POST "$POST_URL"
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Systemd timer configuration
+      ansible.builtin.copy:
+        dest: "/etc/systemd/system/{{ healthchecks_io_service_name }}.timer"
+        content: |
+          [Unit]
+          Description=Run {{ healthchecks_io_service_name }}
+
+          [Timer]
+          OnCalendar=*-*-* *:*:00
+          RandomizedDelaySec=30
+          Persistent=true
+
+          [Install]
+          WantedBy=timers.target
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Systemd timer
+      ansible.builtin.systemd:
+        daemon_reload: true
+        name: "{{ healthchecks_io_service_name }}.timer"
+        enabled: true
+        state: started

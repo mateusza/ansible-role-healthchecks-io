@@ -1,1 +1,7 @@
 ---
+# Create API key from Project Settings
+healthchecks_io_api_key: XXXXXX
+
+# Define integrations (channels) and get their IDs
+# (This part may require you to use API to check website source code)
+healthchecks_io_channels: []
