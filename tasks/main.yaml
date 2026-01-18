@@ -57,6 +57,11 @@
         owner: root
         group: root
 
+    - name: Install curl
+      ansible.builtin.package:
+        name:
+          - curl
+
     - name: Systemd service
       ansible.builtin.copy:
         dest: "/etc/systemd/system/{{ healthchecks_io_service_name }}.service"
