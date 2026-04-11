@@ -1,5 +1,8 @@
 # Changelog
 
+## `v26.04` (2026-04-11)
+
+- added OpenWRT support using `ansible.builtin.raw`
 
 ## `v26.01` (2026-01-18)
 

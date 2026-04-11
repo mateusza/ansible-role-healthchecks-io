@@ -37,6 +37,7 @@
       when: hc_api_get_check_uri.json.checks | length == 0
 
 - name: Healthcheck.io monitored system configuration
+  when: not is_openwrt | default(false)
   block:
     - name: Configuration file
       vars:
@@ -101,3 +102,65 @@
         name: "{{ healthchecks_io_service_name }}.timer"
         enabled: true
         state: started
+
+- name: Healthcheck.io monitored system configuration (OpenWRT)
+  when: is_openwrt | default(false)
+  block:
+    - name: Create /etc/scripts
+      ansible.builtin.raw: |
+        if ! [ -e /etc/scripts ]
+        then
+          mkdir /etc/scripts
+          echo "_CHANGED_"
+        fi
+      register: this
+      changed_when: |
+        "_CHANGED_" in this.stdout
+
+    - name: Create script
+      vars:
+        post_url: "{{
+                      (healthchecks_io_ping_baseurl
+                       ~ '/' ~ healthchecks_io_ping_key
+                       ~ '/' ~ healthchecks_io_slug)
+                      if (healthchecks_io_ping_key | default('') | length > 0)
+                      else (hc_api_get_check_uri.json.checks | first
+                            if (hc_api_get_check_uri.json.checks | length > 0)
+                            else hc_api_post_check_uri.json).ping_url
+                   }}"
+        script_path: /etc/scripts/healthcheck-io.alive.sh
+        tmp_filename: "/tmp/file{{ 1000000000 | random() }}"
+
+      ansible.builtin.raw: |
+        cat > {{ tmp_filename }} << EOF
+        #!/bin/sh
+
+        wget -O/dev/null -q "{{ post_url }}"
+        EOF
+
+        if ! cmp "{{ script_path }}" "{{ tmp_filename }}"
+        then
+          cp "{{ tmp_filename }}" "{{ script_path }}"
+          chmod +x "{{ script_path }}"
+          echo "_CHANGED_"
+        fi
+
+        rm {{ tmp_filename }}
+      register: this
+      changed_when: |
+        "_CHANGED_" in this.stdout
+
+    - name: Create cronjob
+      vars:
+        cron_spec: "* * * * * /etc/scripts/healthcheck-io.alive.sh"
+      ansible.builtin.raw: |
+        if ! grep "{{ cron_spec }}" /etc/crontabs/root
+        then
+          echo "{{ cron_spec }}" >> /etc/crontabs/root
+          /etc/init.d/cron restart
+          echo "_CHANGED_"
+        fi
+      register: this
+      changed_when: |
+        "_CHANGED_" in this.stdout
+
