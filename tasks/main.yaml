@@ -87,6 +87,7 @@
 
           [Timer]
           OnCalendar=*-*-* *:*:00
+          OnStartupSec=1min
           RandomizedDelaySec=30
           Persistent=true
 
